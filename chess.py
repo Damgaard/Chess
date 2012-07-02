@@ -52,12 +52,6 @@ class Piece:
         self.model = model
         self.update_stats()
 
-    def change_model(self, new_model):
-        '''Change the reference to the model state.
-
-           Usuful for AI's and the board test of checkmate'''
-        self.model = new_model
-
     def _rotate(self, moves):
         '''Takes a quater of all moves, returns full moves
 
@@ -68,6 +62,16 @@ class Piece:
         result += map(lambda (x, y): (y * -1, x), moves)
         # Remove any duplicates
         return list(set(result + map(lambda (x, y): (y, x * -1), moves)))
+
+    def change_model(self, new_model):
+        '''Change the reference to the model state.
+
+           Usuful for AI's and the board test of checkmate'''
+        self.model = new_model
+
+    def set_pos(self, x, y):
+        self.x = x
+        self.y = y
 
     def update_stats(self):
         '''Set stats after name. Used in initialisation and pawn transform'''
@@ -167,10 +171,6 @@ class Piece:
         final = self.model.get_point(x, y)
         return final == None or final.player != self.player
 
-    def set_pos(self, x, y):
-        self.x = x
-        self.y = y
-
 class Model:
     '''Class holding information about the state of the game'''
     def __init__(self):
@@ -248,7 +248,7 @@ class Model:
                     if self.chess_map[i] != None])
 
     def pawn_transform(self):
-        '''Transform any pawn that reaches final line to a queen'''
+        '''Transform pawns that reach the final line to a queen.'''
         do_break = False
         pawns = (p for p in self.get_pieces() if p.name == 'pawn')
         for pawn in pawns:
