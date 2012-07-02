@@ -251,7 +251,7 @@ class Model:
     def pawn_transform(self):
         '''Transform any pawn that reaches final line to a queen'''
         do_break = False
-        pawns = [p for p in self.get_pieces() if p.name == 'pawn']
+        pawns = (p for p in self.get_pieces() if p.name == 'pawn')
         for pawn in pawns:
            if pawn.y == 1 or pawn.y == 8:
                 pawn.name = "queen"
@@ -523,7 +523,6 @@ def setup():
         number_input = int(raw_in)
         if number_input not in range(0, 4):
             print "No such player"
-            continue
         elif number_input == 0:
             print ":("
             sys.exit(0)
