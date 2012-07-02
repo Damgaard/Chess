@@ -37,12 +37,12 @@ def _xy_convert(x, y):
 
 class Piece:
     '''Class representing a chess piece'''
-    pieces = {"pawn" : {"value" : 1, "avatar" : "p"},
-              "knight" : {"value" : 3, "avatar" : "k"},
-              "bishop" : {"value" : 3, "avatar" : "b"},
-              "rock" : {"value" : 5, "avatar" : "r"},
-              "queen" : {"value" : 9, "avatar" : "Q"},
-              "king" : {"value" : 1000, "avatar" : "K"}
+    pieces = {"pawn" : {"avatar" : "p"},
+              "knight" : {"avatar" : "k"},
+              "bishop" : { "avatar" : "b"},
+              "rock" : {"avatar" : "r"},
+              "queen" : {"avatar" : "Q"},
+              "king" : {"avatar" : "K"}
     }
 
     def __init__(self, name, from_pos, player, model):
@@ -71,7 +71,6 @@ class Piece:
 
     def update_stats(self):
         '''Set stats after name. Used in initialisation and pawn transform'''
-        self.value = self.pieces[self.name]["value"]
         self.avatar = self.pieces[self.name]["avatar"]
         if self.name == 'pawn':
            self.pawn_move_modifier = -1
