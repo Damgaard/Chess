@@ -374,14 +374,14 @@ class Terminal_view:
 
     def print_moves(self):
         '''Print all moves that have been made in chess notation'''
-        notation = ["1. "]
+        notation = []
         for index, move in enumerate(self.model.moves):
-            notation.append(coordinates_to_human_notation(move))
-            if (index + 1 ) % 2 == 0:
+            if index % 2 == 0:
                 notation.append("\n%i. " % (index / 2 + 1))
             else:
                 notation.append(", ")
-        print "".join(notation[:-1])
+            notation.append(coordinates_to_human_notation(move))
+        print "".join(notation)
 
     def is_in_check(self):
         '''Function called when the player to move is in check'''
@@ -457,16 +457,17 @@ def human(my_player):
 def random_ai(my_player):
     '''Finds a random unit, randomly selects one of its random moves'''
     my_pieces = (p for p in model.get_pieces() if p.player == my_player)
-    all_moves = []
-    for p in my_pieces:
-        all_moves += zip([(p.x, p.y)] * len(p.legal_moves()), p.legal_moves())
+    all_moves = reduce(lambda x, y: x + y, 
+            (zip([(p.x, p.y)] * len(p.legal_moves()), p.legal_moves()) 
+            for p in my_pieces))
     return random.choice(all_moves)
 
 def smart_ai(my_player):
     '''VERY smart. Can see winning moves!'''
     pieces = model.get_pieces()
-    enemy_king = [x for x in pieces if x.name == "king" and x.player != my_player ][0]
-    my_pieces = (p for p in model.get_pieces() if p.player == my_player)
+    enemy_king = [x for x in pieces if x.name == "king" and 
+                                    x.player != my_player ][0]
+    my_pieces = (p for p in pieces if p.player == my_player)
     # Can i take the enemy king?
     for piece in my_pieces:
         if piece.is_legal_move(enemy_king.x, enemy_king.y):
