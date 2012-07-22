@@ -196,11 +196,9 @@ class Model:
 
     def setup_pawn_map(self):
         '''Create and place pieces for a pawn game'''
-        y = 2
         for x in range(1, 9):
-            self.set_point(Piece("pawn", (x, y), 0, self), x = x, y = y)
+            self.set_point(Piece("pawn", (x, 2), 0, self), x = x, y = y)
         self.set_point(Piece("king", (5, 1), 0, self), x = 5, y = 1)
-
         self._mirror_map()
 
     def setup_queen_map(self):
