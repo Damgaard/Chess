@@ -7,33 +7,13 @@ import copy
 import os
 import sys
 import random
-from functools import wraps
 try:
     from termcolor import colored
     has_term_color = True
 except ImportError:
     has_term_color = False
 
-# Helper functions. Should be exported to other file
-def _xy_to_index(function):
-    '''Wraps a function to feed it a map index rather than xy coordinath'''
-    @wraps(function)
-    def wrapped(*args, **kwargs):
-        if "x" not in kwargs.keys() and len(args) == 3:
-            # 3 not keyword arguments. First is self ( the map )
-            index = _xy_convert(args[1], args[2])
-            args = [args[0]]
-        else:
-            # x and y sent as named parameters
-            index = _xy_convert(kwargs["x"], kwargs["y"])
-            del kwargs["x"]
-            del kwargs["y"]
-        return function(index = index, *args, **kwargs)
-    return wrapped
-
-def _xy_convert(x, y):
-    '''Convert to corrosponding index value'''
-    return (x - 1) * 8 + (y - 1)
+from helper import _xy_to_index, _xy_convert
 
 class Piece:
     '''Class representing a chess piece'''
@@ -120,7 +100,7 @@ class Piece:
             fake_rock = Piece("rock", (self.x, self.y), self.player, self.model)
             fake_bishop = Piece("bishop", (self.x, self.y), self.player, self.model)
             return (fake_rock.is_legal_move(x, y) or
-                    fake_bishop.is_legal_move(x,y))
+                    fake_bishop.is_legal_move(x, y))
         elif self.name == "rock":
             if x != self.x and y != self.y:
                 return False
@@ -159,8 +139,7 @@ class Piece:
                 piece = self.model.get_point(x, y)
                 return piece != None and piece.player != self.player
             # Any other move
-            else:
-                return False
+            return False
 
         # Return false if it has to pass over a non-empty point
         if any(self.model.get_point(i, j) != None for i, j in intervening):
@@ -185,7 +164,7 @@ class Model:
         return (x, 9 - y)
 
     def _mirror_map(self):
-        '''Mirror all existing pieces to the other side of the map. Swap player'''
+        '''Mirror all existing pieces to the other side of the map. Swap owner'''
         for piece in self.get_pieces():
             new_player = 1 if piece.player == 0 else 0
             new_x, new_y = self._mirror(piece.x, piece.y)
@@ -226,10 +205,9 @@ class Model:
 
     def setup_queen_map(self):
         '''A map with one player having 7 queens and the other 1 rock'''
-        y = 1
         for x in range(1, 9):
-            self.set_point(Piece("queen", (x, y), 0, self), x=x, y=y)
-        self.set_point(Piece("king", (5, 1), 0, self), x=5, y=y)
+            self.set_point(Piece("queen", (x, 1), 0, self), x =x, y=1)
+        self.set_point(Piece("king", (5, 1), 0, self), x=5, y=1)
         self.set_point(Piece("rock", (5, 7), 1, self), x=5, y=7)
         self.set_point(Piece("king", (5, 8), 1, self), x=5, y=8)
 
@@ -304,8 +282,8 @@ class Model:
     def is_in_checkmate(self):
         if not len(self.moves):
             return False
-        _, _,(to_x, to_y) = self.moves[-1]
-        last_mover = self.get_point(to_x, to_y).player
+        _, _, to_pos = self.moves[-1]
+        last_mover = self.get_point(*to_pos).player
         pieces = self.get_pieces()
         other_pieces = [x for x in pieces if x.player != last_mover]
         checker_pieces = (x for x in pieces if x.player == last_mover)
@@ -441,18 +419,18 @@ def human(my_player):
             print bad_format +  "Write Q to quit"
             continue
 
-        (from_x, from_y), (to_x, to_y) = translated_move
-        if not (model.is_inside(from_x, from_y) or
-                model.is_inside(to_x, to_y)):
+        from_pos, to_pos = translated_move
+        if not (model.is_inside(*from_pos) or
+                model.is_inside(*to_pos)):
             print "Move is outside the board!"
             continue
-        unit = model.get_point(from_x, from_y)
+        unit = model.get_point(*from_pos)
         if unit == None or unit.player != my_player:
             print "There isn't a unit at the starting position that belongs to us"
-        elif not unit.is_legal_move(to_x, to_y):
+        elif not unit.is_legal_move(*to_pos):
             print "Not legal move!"
         else:
-            return ((from_x, from_y), (to_x, to_y))
+            return (from_pos, to_pos)
 
 def random_ai(my_player):
     '''Finds a random unit, randomly selects one of its random moves'''
