@@ -92,21 +92,20 @@ class Piece:
         # Test whether we could theoretically get there with normal moves
         # Then test if all the intervening space is free
         # Finally test if destination is free or enemy
-        intervening = []
         if self.name == "king":
             if abs(x - self.x) > 1 or abs(y - self.y) > 1:
                 return False
         elif self.name == "queen":
             fake_rock = Piece("rock", (self.x, self.y), self.player, self.model)
             fake_bishop = Piece("bishop", (self.x, self.y), self.player, self.model)
-            return (fake_rock.is_legal_move(x, y) or
-                    fake_bishop.is_legal_move(x, y))
+            return (fake_rock.is_legal_move(x, y) or fake_bishop.is_legal_move(x, y))
         elif self.name == "rock":
             if x != self.x and y != self.y:
                 return False
+            intervening = []
             for ix in range(min(x, self.x), max(x, self.x) + 1):
-                for iy in range(min(y, self.y), max(y, self.y) + 1):
-                    intervening.append((ix, iy))
+                intervening += [(ix, iy) for iy in range(min(y, self.y),
+                                                         max(y, self.y) + 1)]
             # Destination is treated different
             intervening.remove((x, y))
             intervening.remove((self.x, self.y))
@@ -115,8 +114,8 @@ class Piece:
                 return False
             step_x = 1 if self.x < x else -1
             step_y = 1 if self.y < y else -1
-            for i in range(0, abs(self.x - x) + 1):
-                intervening.append((self.x + i * step_x, self.y + i * step_y))
+            intervening = [(self.x + i * step_x, self.y + i * step_y) 
+                                   for i in range(abs(self.x - x) + 1)]
             # Destination is treated different
             intervening.remove((x, y))
             intervening.remove((self.x, self.y))
@@ -142,7 +141,7 @@ class Piece:
             return False
 
         # Return false if it has to pass over a non-empty point
-        if any(self.model.get_point(i, j) != None for i, j in intervening):
+        if any(self.model.get_point(x, y) != None for x, y in intervening):
             return False
 
         # Return False if the final position is occupied by friendly unit
@@ -153,7 +152,7 @@ class Piece:
 class Model:
     '''Class holding information about the state of the game'''
     def __init__(self):
-        self.chess_map = 8 * 8 * [None]
+        self.chess_map = [None] * 64
 #        self.setup_queen_map()
         self.setup_standard_map()
         self.moves = []
@@ -221,18 +220,17 @@ class Model:
     def get_pieces(self):
         '''Return all game pieces'''
         return ([self.chess_map[i] for i in range(0, 8 * 8) 
-                    if self.chess_map[i] != None])
+                                   if self.chess_map[i] != None])
 
     def pawn_transform(self):
         '''Transform pawns that reach the final line to a queen.'''
-        do_break = False
         pawns = (p for p in self.get_pieces() if p.name == 'pawn')
         for pawn in pawns:
            if pawn.y == 1 or pawn.y == 8:
                 pawn.name = "queen"
                 pawn.update_stats()
                 # Assume only one pawn can reach final line pr turn
-                break
+                return
 
     def move_unit(self, (from_x, from_y), (to_x, to_y)):
         '''Move a unit from (from_x, from_y) to (to_x, to_y)'''
@@ -287,7 +285,6 @@ class Model:
         checker_pieces = (x for x in pieces if x.player == last_mover)
         other_king = [x for x in pieces if x.name == "king" and x.player != last_mover]
         if not len(other_king):
-            # No enemy kind
             return False
         else:
             other_king = other_king[0]
@@ -295,20 +292,19 @@ class Model:
         for piece in checker_pieces:
             if piece.is_legal_move(other_king.x, other_king.y):
                 is_in_checkmate = True
-                do_break = False
                 for piece2 in other_pieces:
-                    for move in  piece2.legal_moves():
+                    for move in piece2.legal_moves():
                         self.move_unit((piece2.x, piece2.y), move)
                         if not self.is_in_check(last_mover):
                             # Found a move that prevent piece from taking
                             # king in next move. Eg its a check not checkmate
-                            do_break = True
                             is_in_checkmate = False
                             self.undo_move()
                             break
                         self.undo_move()
-                    if do_break:
-                        break
+                    else:
+                        continue
+                    break
         return is_in_checkmate
 
 class Terminal_view:
@@ -442,7 +438,7 @@ def smart_ai(my_player):
     '''VERY smart. Can see winning moves!'''
     pieces = model.get_pieces()
     enemy_king = [x for x in pieces if x.name == "king" and 
-                                    x.player != my_player ][0]
+                                       x.player != my_player ][0]
     my_pieces = (p for p in pieces if p.player == my_player)
     # Can i take the enemy king?
     for piece in my_pieces:
