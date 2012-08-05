@@ -4,9 +4,10 @@
 '''
 
 import copy
+import itertools
 import os
-import sys
 import random
+import sys
 try:
     from termcolor import colored
     has_term_color = True
@@ -17,12 +18,17 @@ from helper import _xy_to_index, _xy_convert
 
 class Piece:
     '''Class representing a chess piece'''
-    piece_avatar = {"pawn" : "p",
-                    "knight" : "k",
-                     "bishop" : "b",
-                     "rock" : "r",
-                     "queen" : "Q",
-                     "king" : "K"}
+    piece_avatar = {"pawn" : "p", "knight" : "k", "bishop" : "b", 
+                    "rock" : "r", "queen" : "Q", "king" : "K"}
+
+    moves = {"pawn" : [[(0, 1), (0, 2), (-1, 1), (1, 1)],
+                       [(0, -1), (0, -2), (-1, 1), (1, 1)]],
+             "knight" : list(itertools.product([1, -1], [2, -2])) +
+                        list(itertools.product([2, -2], [1, -1])),
+             "rock" : list(itertools.product(range(-7, 0) + range(1, 8), [0])),
+             "bishop" : [(i, i) for i in range(-7, 8) if i != 0] +
+                        [(-i , i) for i in range(-7, 8) if i != 0],
+             "king" : list(itertools.product([-1, 0, 1], [-1, 0, 1]))}
 
     def __init__(self, name, from_pos, player, model):
         self.name = name
@@ -30,17 +36,6 @@ class Piece:
         self.x, self.y = from_pos
         self.model = model
         self.update_stats()
-
-    def _rotate(self, moves):
-        '''Takes a quater of all moves, returns full moves
-
-           It does this by rotating the moves in each of the other three
-           directions'''
-        result = moves
-        result += map(lambda (x, y): (x * -1, y * -1), moves)
-        result += map(lambda (x, y): (y * -1, x), moves)
-        # Remove any duplicates
-        return list(set(result + map(lambda (x, y): (y, x * -1), moves)))
 
     def change_model(self, new_model):
         '''Change the reference to the model state.
@@ -55,34 +50,21 @@ class Piece:
     def update_stats(self):
         '''Set stats after name. Used in initialisation and pawn transform'''
         self.avatar = self.piece_avatar[self.name]
+        self.pawn_move_modifier = 1 if self.player == 0 else -1
         if self.name == 'pawn':
-           self.pawn_move_modifier = -1
-           if self.player == 0:
-               self.pawn_move_modifier = 1
-           self.movement = [(0, self.pawn_move_modifier),
-                            (0, 2 * self.pawn_move_modifier),
-                            (-1, self.pawn_move_modifier), 
-                            (1, self.pawn_move_modifier)]
-        elif self.name == 'bishop':
-            self.movement = self._rotate(zip(range(1, 9), range(1, 9)))
-        elif self.name == "knight":
-            self.movement = self._rotate([(2, 1), (1, 2)])
-        elif self.name == 'rock':
-            self.movement = self._rotate(zip([0] * 8, range(1, 9)))
+            self.movement = self.moves['pawn'][self.player]
         elif self.name == 'queen':
-            fake_rock = Piece("rock", (self.x, self.y), self.player, self.model)
-            fake_bishop = Piece("bishop", (self.x, self.y), self.player, self.model)
-            self.movement = fake_rock.movement + fake_bishop.movement
-        elif self.name == 'king':
-            self.movement = self._rotate([(1, 1), (1, 0)])
+            self.movement = self.moves['rock'] + self.moves['bishop']
+        else:
+            self.movement = self.moves[self.name]
 
     def legal_moves(self):
         '''Return all legal moves for this unit.
 
            Mainly used by AI's and to test for checkmate'''
-        moveable_positions = map(lambda (x, y): (x + self.x, y + self.y),
+        potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
                                  self.movement)
-        return [(x, y) for x, y in moveable_positions if
+        return [(x, y) for x, y in potential_moves if
                     self.model.is_inside(x, y) and self.is_legal_move(x, y)]
 
     def is_legal_move(self, x, y):
