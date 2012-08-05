@@ -17,13 +17,12 @@ from helper import _xy_to_index, _xy_convert
 
 class Piece:
     '''Class representing a chess piece'''
-    pieces = {"pawn" : {"avatar" : "p"},
-              "knight" : {"avatar" : "k"},
-              "bishop" : { "avatar" : "b"},
-              "rock" : {"avatar" : "r"},
-              "queen" : {"avatar" : "Q"},
-              "king" : {"avatar" : "K"}
-    }
+    piece_avatar = {"pawn" : "p",
+                    "knight" : "k",
+                     "bishop" : "b",
+                     "rock" : "r",
+                     "queen" : "Q",
+                     "king" : "K"}
 
     def __init__(self, name, from_pos, player, model):
         self.name = name
@@ -55,7 +54,7 @@ class Piece:
 
     def update_stats(self):
         '''Set stats after name. Used in initialisation and pawn transform'''
-        self.avatar = self.pieces[self.name]["avatar"]
+        self.avatar = self.piece_avatar[self.name]
         if self.name == 'pawn':
            self.pawn_move_modifier = -1
            if self.player == 0:
@@ -92,6 +91,7 @@ class Piece:
         # Test whether we could theoretically get there with normal moves
         # Then test if all the intervening space is free
         # Finally test if destination is free or enemy
+        intervening = []
         if self.name == "king":
             if abs(x - self.x) > 1 or abs(y - self.y) > 1:
                 return False
@@ -102,7 +102,6 @@ class Piece:
         elif self.name == "rock":
             if x != self.x and y != self.y:
                 return False
-            intervening = []
             for ix in range(min(x, self.x), max(x, self.x) + 1):
                 intervening += [(ix, iy) for iy in range(min(y, self.y),
                                                          max(y, self.y) + 1)]
