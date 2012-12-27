@@ -1,7 +1,8 @@
-'''Terminal Chess simulator
+"""
+Terminal Chess Game
 
-   Hard Problem 68 on r/dailyprogrammer
-'''
+Hard Problem 68 on r/dailyprogrammer
+"""
 
 import copy
 import itertools
@@ -14,10 +15,8 @@ try:
 except ImportError:
     has_term_color = False
 
-from helper import _xy_to_index, _xy_convert
-
 class Piece:
-    '''Class representing a chess piece'''
+    """Class representing a chess piece"""
     piece_avatar = {"pawn" : "p", "knight" : "n", "bishop" : "b",
                     "rock" : "r", "queen" : "q", "king" : "k"}
 
@@ -38,17 +37,20 @@ class Piece:
         self.update_stats()
 
     def change_model(self, new_model):
-        '''Change the reference to the model state.
+        """
+        Change the reference to the model state.
 
-           Usuful for AI's and the board test of checkmate'''
+        Useful for AI's and the board test of checkmate.
+        """
         self.model = new_model
 
     def set_pos(self, x, y):
+        """Set position of the piece to x, y."""
         self.x = x
         self.y = y
 
     def update_stats(self):
-        '''Set stats after name. Used in initialisation and pawn transform'''
+        """Set stats after name. Used in initialisation and pawn transform."""
         self.avatar = self.piece_avatar[self.name]
         self.pawn_move_modifier = 1 if self.player == 0 else -1
         if self.name == 'pawn':
@@ -59,16 +61,18 @@ class Piece:
             self.movement = self.moves[self.name]
 
     def legal_moves(self):
-        '''Return all legal moves for this unit.
+        """
+        Return all legal moves for this unit.
 
-           Mainly used by AI's and to test for checkmate'''
+        Mainly used by AI's and to test for checkmate.
+        """
         potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
                                  self.movement)
         return [(x, y) for x, y in potential_moves if
                     self.model.is_inside(x, y) and self.is_legal_move(x, y)]
 
     def is_legal_move(self, x, y):
-        '''Test whether the proposed move is legal'''
+        """Test whether the proposed move is legal"""
         # Assume move is within self.model and not current pos
         # Test whether we could theoretically get there with normal moves
         # Then test if all the intervening space is free
@@ -131,20 +135,21 @@ class Piece:
         return final == None or final.player != self.player
 
 class Model:
-    '''Class holding information about the state of the game'''
+    """Class holding information about the state of the game"""
     def __init__(self):
         self.chess_map = [None] * 64
 #        self.setup_queen_map()
         self.setup_standard_map()
+#        self.setup_pawn_map()
         self.moves = []
 
     # Functions used in initialisation
     def _mirror(self, x, y):
-        '''Take an x an y coordinate, return it mirrored'''
+        """Take an x an y coordinate, return it mirrored"""
         return (x, 9 - y)
 
     def _mirror_map(self):
-        '''Mirror all existing pieces to the other side of the map. Swap owner'''
+        """Mirror top side to bottom. Flip ownership of other half pieces."""
         for piece in self.get_pieces():
             new_player = 1 if piece.player == 0 else 0
             new_x, new_y = self._mirror(piece.x, piece.y)
@@ -155,7 +160,7 @@ class Model:
             self.set_point(mirror_piece, x = new_x, y = new_y)
 
     def setup_standard_map(self):
-        '''Create and place pieces for a standard game'''
+        """Create and place pieces for a standard game"""
         # Officers
         y = 1
         for x in (1, 8):
@@ -175,14 +180,14 @@ class Model:
         self._mirror_map()
 
     def setup_pawn_map(self):
-        '''Create and place pieces for a pawn game'''
+        """Create and place pieces for a pawn game"""
         for x in range(1, 9):
-            self.set_point(Piece("pawn", (x, 2), 0, self), x = x, y = y)
+            self.set_point(Piece("pawn", (x, 2), 0, self), x = x, y = 2)
         self.set_point(Piece("king", (5, 1), 0, self), x = 5, y = 1)
         self._mirror_map()
 
     def setup_queen_map(self):
-        '''A map with one player having 7 queens and the other 1 rock'''
+        """A map with one player having 7 queens and the other 1 rock"""
         for x in range(1, 9):
             self.set_point(Piece("queen", (x, 1), 0, self), x =x, y=1)
         self.set_point(Piece("king", (5, 1), 0, self), x=5, y=1)
@@ -190,40 +195,52 @@ class Model:
         self.set_point(Piece("king", (5, 8), 1, self), x=5, y=8)
 
     # Often used functions in execution
-    @_xy_to_index
-    def get_point(self, index):
+    def get_point(self, x = None, y = None, index = None):
+        """Return the piece placed on index, or None if there is no piece."""
+        if (x is None) != (y is None):
+            raise Exception('Both x and y must be given.')
+        if (x is None) == (index is None):
+            raise Exception('Provide either an x, y coordinate or an index.')
+        if x is not None:
+            index = (x - 1) * 8 + (y - 1)
         return self.chess_map[index]
 
-    @_xy_to_index
-    def set_point(self, thing, index):
+    def set_point(self, thing, x = None, y = None, index = None):
+        """Set the index to contain the thing."""
+        if (x is None) != (y is None):
+            raise Exception('Both x and y must be given.')
+        if (x is None) == (index is None):
+            raise Exception('Provide either an x, y coordinate or an index.')
+        if x is not None:
+            index = (x - 1) * 8 + (y - 1)
         self.chess_map[index] = thing
 
     def get_pieces(self):
-        '''Return all game pieces'''
-        return ([self.chess_map[i] for i in range(0, 8 * 8) 
+        """Return all game pieces"""
+        return ([self.chess_map[i] for i in range(0, 8 * 8)
                                    if self.chess_map[i] != None])
 
     def pawn_transform(self):
-        '''Transform pawns that reach the final line to a queen.'''
+        """Transform pawns that reach the final line to a queen."""
         pawns = (p for p in self.get_pieces() if p.name == 'pawn')
         for pawn in pawns:
-           if pawn.y == 1 or pawn.y == 8:
+            if pawn.y == 1 or pawn.y == 8:
                 pawn.name = "queen"
                 pawn.update_stats()
                 # Assume only one pawn can reach final line pr turn
                 return
 
     def move_unit(self, (from_x, from_y), (to_x, to_y)):
-        '''Move a unit from (from_x, from_y) to (to_x, to_y)'''
+        """Move a unit from (from_x, from_y) to (to_x, to_y)"""
         unit = self.get_point(from_x, from_y)
-        self.moves.append((self.get_point(to_x, to_y), (from_x, from_y), 
+        self.moves.append((self.get_point(to_x, to_y), (from_x, from_y),
                                                        (to_x, to_y)))
         self.set_point(unit, x = to_x, y = to_y)
         self.set_point(None, x = from_x, y = from_y)
         unit.set_pos(to_x, to_y)
 
     def undo_move(self):
-        '''Undo the last move. Cannot currently redo moves'''
+        """Undo the last move. Cannot currently redo moves"""
         unit, (from_x, from_y), (to_x, to_y) = self.moves.pop()
         moved_unit = self.get_point(x = to_x, y = to_y)
         self.set_point(unit, x = to_x, y = to_y)
@@ -234,17 +251,18 @@ class Model:
 
     # Test if model state during execution
     def game_not_over(self):
-        '''Test whether the game has ended'''
+        """Test whether the game has ended"""
         # The game ends when there is less than 2 kings on the model
-        return sum(self.chess_map[i] != None and 
-                   self.chess_map[i].name == "king" 
+        return sum(self.chess_map[i] != None and
+                   self.chess_map[i].name == "king"
                    for i in range(0, 8*8)) == 2 and not self.is_in_checkmate()
 
     def is_inside(self, x, y):
-        '''Is the coordinate within the game model?'''
+        """Is the coordinate within the game model?"""
         return x in range(1, 9) and y in range(1, 9)
 
     def is_in_check(self, test_for):
+        """Is player number 'test_for' in check?"""
         pieces = self.get_pieces()
         checker_pieces = (x for x in pieces if x.player == test_for)
         other_king = [x for x in pieces if x.name == "king"
@@ -257,14 +275,16 @@ class Model:
                                        for piece in checker_pieces)
 
     def is_in_checkmate(self):
+        """Is the next player in checkmate?"""
         if not len(self.moves):
             return False
-        _, _, to_pos = self.moves[-1]
-        last_mover = self.get_point(*to_pos).player
+        _, _, (to_x, to_y) = self.moves[-1]
+        last_mover = self.get_point(to_x, to_y).player
         pieces = self.get_pieces()
         other_pieces = [x for x in pieces if x.player != last_mover]
         checker_pieces = (x for x in pieces if x.player == last_mover)
-        other_king = [x for x in pieces if x.name == "king" and x.player != last_mover]
+        other_king = [x for x in pieces if x.name == "king"
+                        and x.player != last_mover]
         if not len(other_king):
             return False
         else:
@@ -289,12 +309,13 @@ class Model:
         return is_in_checkmate
 
 class Terminal_view:
+    """Handles displaying the game in a terminal."""
     def __init__ (self, model):
         self.model = model
         self.msg = None
 
     def refresh_map(self):
-        '''Draw the model to terminal'''
+        """Draw the model to terminal"""
         os.system( [ 'clear', 'cls' ][ os.name == 'nt' ] )
         player_colors = ["white", "blue"]
         bg_colors = ["on_yellow", "on_green"]
@@ -305,7 +326,7 @@ class Terminal_view:
                 if piece != None:
                     char = piece.avatar
                     if has_term_color:
-                        char = (colored(char, 
+                        char = (colored(char,
                                     player_colors[piece.player],
                                     bg_colors[(x + y) % 2]))
                     else:
@@ -314,22 +335,23 @@ class Terminal_view:
                 else:
                     char = " "
                     if has_term_color:
-                        char = (colored(char, None, 
+                        char = (colored(char, None,
                                 bg_colors[(x + y) % 2]))
                 line.append(char)
             print "".join(line)
-        print 
+        print
         print "  abcdefgh"
         print
 
     def to_move(self, color):
+        """Prints information about whose turn it is to move."""
         print "It's %s's turn to move" % color
         if self.msg != None:
             print self.msg
             self.msg = None
 
     def print_moves(self):
-        '''Print all moves that have been made in chess notation'''
+        """Print all moves that have been made in chess notation"""
         notation = []
         for index, move in enumerate(self.model.moves):
             if index % 2 == 0:
@@ -340,13 +362,15 @@ class Terminal_view:
         print "".join(notation)
 
     def is_in_check(self):
-        '''Function called when the player to move is in check'''
+        """Function called when the player to move is in check"""
         self.msg = "You are in check!"
 
     def is_in_checkmate(self):
+        """Tells a player he's been checkmated."""
         self.msg = "You have been checkmated!"
 
     def print_loss_screen(self, color):
+        """Print loss screen for the player with color 'color'."""
         self.refresh_map()
         self.print_moves()
         print "%s just Lost the Game" % color
@@ -354,14 +378,14 @@ class Terminal_view:
             print self.msg
 
 def coordinates_to_human_notation((unit, (from_x, from_y), (to_x, to_y))):
-    '''Translate coordinates like 21-31 to Kb1-f3'''
+    """Translate coordinates like 21-31 to Kb1-f3"""
     x_names = "abcdefgh"
     uniter = "-" if unit == None else "x"
     return x_names[from_x - 1] + str(from_y) + uniter + \
            x_names[to_x - 1] + str(to_y)
 
 def human_notation_to_coordinates(move):
-    '''Translate human notation like e5-a2 into coordinates.'''
+    """Translate human notation like e5-a2 into coordinates."""
     # This can have surprisingly many forms of bad input
     if len(move) != 5 or move.count("-") != 1:
         return False
@@ -375,7 +399,7 @@ def human_notation_to_coordinates(move):
     if (from_x not in x_names or to_x not in x_names or
         from_y not in y_names or to_y not in y_names):
         return False
-    return ((x_names.index(from_x) + 1, int(from_y)), 
+    return ((x_names.index(from_x) + 1, int(from_y)),
             (x_names.index(to_x) + 1, int(to_y)))
 
 # I think the smartest thing would be to have the AI or even players
@@ -384,7 +408,7 @@ def human_notation_to_coordinates(move):
 # This would remove the need to repeatedly get all the pieces from model
 
 def human(my_player):
-    '''Get move through feedback. Through terminal'''
+    """Get move through feedback. Through terminal"""
     while True:
         move = raw_input("Whats your move?").lower()
         if move == "q":
@@ -397,31 +421,31 @@ def human(my_player):
             print bad_format +  "Write Q to quit"
             continue
 
-        from_pos, to_pos = translated_move
-        if not (model.is_inside(*from_pos) or
-                model.is_inside(*to_pos)):
+        (from_x, from_y), (to_x, to_y) = translated_move
+        if not (model.is_inside(from_x, from_y) or
+                model.is_inside(to_x, to_y)):
             print "Move is outside the board!"
             continue
-        unit = model.get_point(*from_pos)
+        unit = model.get_point(from_x, from_y)
         if unit == None or unit.player != my_player:
-            print "There isn't a unit at the starting position that belongs to us"
-        elif not unit.is_legal_move(*to_pos):
+            print "We don't have a piece at the starting position."
+        elif not unit.is_legal_move(to_x, to_y):
             print "Not legal move!"
         else:
-            return (from_pos, to_pos)
+            return ((from_x, from_y), (to_x, to_y))
 
 def random_ai(my_player):
-    '''Finds a random unit, randomly selects one of its random moves'''
+    """Finds a random unit, randomly selects one of its random moves"""
     my_pieces = (p for p in model.get_pieces() if p.player == my_player)
-    all_moves = reduce(lambda x, y: x + y, 
-            (zip([(p.x, p.y)] * len(p.legal_moves()), p.legal_moves()) 
+    all_moves = reduce(lambda x, y: x + y,
+            (zip([(p.x, p.y)] * len(p.legal_moves()), p.legal_moves())
             for p in my_pieces))
     return random.choice(all_moves)
 
 def smart_ai(my_player):
-    '''VERY smart. Can see winning moves!'''
+    """VERY smart. Can see winning moves!"""
     pieces = model.get_pieces()
-    enemy_king = [x for x in pieces if x.name == "king" and 
+    enemy_king = [x for x in pieces if x.name == "king" and
                                        x.player != my_player ][0]
     my_pieces = (p for p in pieces if p.player == my_player)
     # Can i take the enemy king?
@@ -431,8 +455,10 @@ def smart_ai(my_player):
     # Failed to find winning move. Lets make a random one
     return random_ai(my_player)
 
-def game(players = [random_ai, random_ai]):
-    '''Main loop'''
+def game(players = None):
+    """Main loop"""
+    if players is None:
+        players = [random_ai, random_ai]
     colors = ["White", "Black"]
     turn = 0
 
@@ -458,7 +484,8 @@ def game(players = [random_ai, random_ai]):
     view.print_loss_screen(colors[turn])
 
 def setup():
-    os.system( [ 'clear', 'cls' ][ os.name == 'nt' ] )
+    """Clear screen and find out who is playing."""
+    os.system(['clear', 'cls'][ os.name == 'nt' ] )
     players = []
     player_types = [human, random_ai, smart_ai]
     print "Welcome to terminal chess!"
