@@ -73,65 +73,40 @@ class Piece:
 
     def is_legal_move(self, x, y):
         """Test whether the proposed move is legal"""
-        # Assume move is within self.model and not current pos
-        # Test whether we could theoretically get there with normal moves
-        # Then test if all the intervening space is free
-        # Finally test if destination is free or enemy
+        # Assume move is within self.model and not current pos.
+        potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
+                                 self.movement)
+        if (x, y) not in potential_moves:
+            return False
+        final = self.model.get_point(x, y)
+        if self.name == 'pawn':
+            if x != self.x: # Trying to take a piece
+                return final != None and final.player != self.player
+            else: # Just trying to move
+                middle_point = None
+                if abs(self.y - y) == 2:
+                    middle_pont = self.model.get_point(self.x, self.y +
+                                                       self.pawn_move_modifier)
+                return final == None and middle_point == None
+
         intervening = []
-        if self.name == "king":
-            if abs(x - self.x) > 1 or abs(y - self.y) > 1:
-                return False
-        elif self.name == "queen":
-            fake_rock = Piece("rock", (self.x, self.y), self.player, self.model)
-            fake_bishop = Piece("bishop", (self.x, self.y), self.player, self.model)
-            return (fake_rock.is_legal_move(x, y) or fake_bishop.is_legal_move(x, y))
-        elif self.name == "rock":
-            if x != self.x and y != self.y:
-                return False
+        if self.name == 'rock' or self.name == 'queen':
             for ix in range(min(x, self.x), max(x, self.x) + 1):
-                intervening += [(ix, iy) for iy in range(min(y, self.y),
-                                                         max(y, self.y) + 1)]
-            # Destination is treated different
-            intervening.remove((x, y))
-            intervening.remove((self.x, self.y))
-        elif self.name == "bishop":
-            if abs(x - self.x) != abs(y - self.y):
-                return False
+                intervening = [(ix, iy) for iy in range(min(y, self.y),
+                                                        max(y, self.y) + 1)]
+        if self.name == "bishop" or self.name == 'queen':
             step_x = 1 if self.x < x else -1
             step_y = 1 if self.y < y else -1
-            intervening = [(self.x + i * step_x, self.y + i * step_y) 
+            intervening += [(self.x + i * step_x, self.y + i * step_y)
                                    for i in range(abs(self.x - x) + 1)]
-            # Destination is treated different
-            intervening.remove((x, y))
-            intervening.remove((self.x, self.y))
-        elif self.name == "knight":
-            if not ((abs(self.x - x) == 2 and abs(self.y - y) == 1) or
-                    (abs(self.x - x) == 1 and abs(self.y - y) == 2)):
-                return False
-        elif self.name == "pawn":
-            # Move 1 up
-            if x == self.x and y == self.y + 1 * self.pawn_move_modifier:
-                return self.model.get_point(x, y) == None
-            # Move 2 up
-            elif (x == self.x and (self.y == 2 or self.y == 7)
-                              and y == self.y + 2 * self.pawn_move_modifier):
-                return (self.model.get_point(x = x, 
-                            y = self.y + 1 * self.pawn_move_modifier) == None 
-                        and self.model.get_point(x=x, y=y) == None)
-            # Move 1 up and 1 sideways. Eg try to take enemy piece
-            elif abs(x - self.x) == 1 and y == self.y + 1 * self.pawn_move_modifier:
-                piece = self.model.get_point(x, y)
-                return piece != None and piece.player != self.player
-            # Any other move
-            return False
 
         # Return false if it has to pass over a non-empty point
+        intervening = [i for i in intervening
+                         if i != (x, y) and i!= (self.x, self.y)]
         if any(self.model.get_point(x, y) != None for x, y in intervening):
             return False
 
-        # Return False if the final position is occupied by friendly unit
-        # Else return true
-        final = self.model.get_point(x, y)
+        # Final pos must be vacant or occupied by enemy
         return final == None or final.player != self.player
 
 class Model:
