@@ -2,10 +2,15 @@
 
 The ancient game of chess in terminal form
 
-## Dependencies
+## Install and dependencies
 
-If you want color, you'll need the module termcolor installed. The program
-has no other dependencies
+Termcolor is needed to draw the players and board in different colors, if it
+isn't installed then Black will have uppercase letters and white will have
+lower case letters.
+
+```
+pip install termcolor
+```
 
 ## Other
 

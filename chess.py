@@ -18,8 +18,8 @@ from helper import _xy_to_index, _xy_convert
 
 class Piece:
     '''Class representing a chess piece'''
-    piece_avatar = {"pawn" : "p", "knight" : "k", "bishop" : "b", 
-                    "rock" : "r", "queen" : "Q", "king" : "K"}
+    piece_avatar = {"pawn" : "p", "knight" : "n", "bishop" : "b",
+                    "rock" : "r", "queen" : "q", "king" : "k"}
 
     moves = {"pawn" : [[(0, 1), (0, 2), (-1, 1), (1, 1)],
                        [(0, -1), (0, -2), (-1, 1), (1, 1)]],
@@ -308,6 +308,9 @@ class Terminal_view:
                         char = (colored(char, 
                                     player_colors[piece.player],
                                     bg_colors[(x + y) % 2]))
+                    else:
+                        if piece.player == 1:
+                            char = char.upper()
                 else:
                     char = " "
                     if has_term_color:
