@@ -44,33 +44,6 @@ class Piece:
         """
         self.model = new_model
 
-    def set_pos(self, x, y):
-        """Set position of the piece to x, y."""
-        self.x = x
-        self.y = y
-
-    def update_stats(self):
-        """Set stats after name. Used in initialisation and pawn transform."""
-        self.avatar = self.piece_avatar[self.name]
-        self.pawn_move_modifier = 1 if self.player == 0 else -1
-        if self.name == 'pawn':
-            self.movement = self.moves['pawn'][self.player]
-        elif self.name == 'queen':
-            self.movement = self.moves['rock'] + self.moves['bishop']
-        else:
-            self.movement = self.moves[self.name]
-
-    def legal_moves(self):
-        """
-        Return all legal moves for this unit.
-
-        Mainly used by AI's and to test for checkmate.
-        """
-        potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
-                                 self.movement)
-        return [(x, y) for x, y in potential_moves if
-                    self.model.is_inside(x, y) and self.is_legal_move(x, y)]
-
     def is_legal_move(self, x, y):
         """Test whether the proposed move is legal"""
         # Assume move is within self.model and not current pos.
@@ -85,9 +58,9 @@ class Piece:
             else: # Just trying to move
                 middle_point = None
                 if abs(self.y - y) == 2:
-                    middle_pont = self.model.get_point(self.x, self.y +
+                    middle_point = self.model.get_point(self.x, self.y +
                                                        self.pawn_move_modifier)
-                return final == None and middle_point == None
+                return final is None and middle_point is None
 
         intervening = []
         if self.name == 'rock' or self.name == 'queen':
@@ -108,6 +81,33 @@ class Piece:
 
         # Final pos must be vacant or occupied by enemy
         return final == None or final.player != self.player
+
+    def legal_moves(self):
+        """
+        Return all legal moves for this unit.
+
+        Mainly used by AI's and to test for checkmate.
+        """
+        potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
+                                 self.movement)
+        return [(x, y) for x, y in potential_moves if
+                    self.model.is_inside(x, y) and self.is_legal_move(x, y)]
+
+    def set_pos(self, x, y):
+        """Set position of the piece to x, y."""
+        self.x = x
+        self.y = y
+
+    def update_stats(self):
+        """Set stats after name. Used in initialisation and pawn transform."""
+        self.avatar = self.piece_avatar[self.name]
+        self.pawn_move_modifier = 1 if self.player == 0 else -1
+        if self.name == 'pawn':
+            self.movement = self.moves['pawn'][self.player]
+        elif self.name == 'queen':
+            self.movement = self.moves['rock'] + self.moves['bishop']
+        else:
+            self.movement = self.moves[self.name]
 
 class Model:
     """Class holding information about the state of the game"""
@@ -134,42 +134,19 @@ class Model:
             mirror_piece.set_pos(new_x, new_y)
             self.set_point(mirror_piece, x = new_x, y = new_y)
 
-    def setup_standard_map(self):
-        """Create and place pieces for a standard game"""
-        # Officers
-        y = 1
-        for x in (1, 8):
-            self.set_point(Piece("rock", (x, y), 0, self), x=x, y=y)
-        for x in (3, 6):
-            self.set_point(Piece("bishop", (x, y), 0, self), x=x, y=y)
-        for x in (2, 7):
-            self.set_point(Piece("knight", (x, y), 0, self), x=x, y=y)
-        self.set_point(Piece("queen", (4, y), 0, self), x=4, y=y)
-        self.set_point(Piece("king", (5, y), 0, self), x=5, y=y)
+    def game_not_over(self):
+        """Test whether the game has ended."""
+        # The game ends when there is less than 2 kings on the model
+        return sum(self.chess_map[i] != None and
+                   self.chess_map[i].name == "king"
+                   for i in range(0, 8*8)) == 2 and not self.is_in_checkmate()
 
-        # Pawns
-        for x in range(1, 9):
-            self.set_point(Piece("pawn", (x, 2), 0, self), x=x, y=2)
+    def get_pieces(self):
+        """Return all game pieces."""
+        return ([self.chess_map[i] for i in range(0, 8 * 8)
+                                   if self.chess_map[i] != None])
 
-        # Black pieces
-        self._mirror_map()
 
-    def setup_pawn_map(self):
-        """Create and place pieces for a pawn game"""
-        for x in range(1, 9):
-            self.set_point(Piece("pawn", (x, 2), 0, self), x = x, y = 2)
-        self.set_point(Piece("king", (5, 1), 0, self), x = 5, y = 1)
-        self._mirror_map()
-
-    def setup_queen_map(self):
-        """A map with one player having 7 queens and the other 1 rock"""
-        for x in range(1, 9):
-            self.set_point(Piece("queen", (x, 1), 0, self), x =x, y=1)
-        self.set_point(Piece("king", (5, 1), 0, self), x=5, y=1)
-        self.set_point(Piece("rock", (5, 7), 1, self), x=5, y=7)
-        self.set_point(Piece("king", (5, 8), 1, self), x=5, y=8)
-
-    # Often used functions in execution
     def get_point(self, x = None, y = None, index = None):
         """Return the piece placed on index, or None if there is no piece."""
         if (x is None) != (y is None):
@@ -179,62 +156,6 @@ class Model:
         if x is not None:
             index = (x - 1) * 8 + (y - 1)
         return self.chess_map[index]
-
-    def set_point(self, thing, x = None, y = None, index = None):
-        """Set the index to contain the thing."""
-        if (x is None) != (y is None):
-            raise Exception('Both x and y must be given.')
-        if (x is None) == (index is None):
-            raise Exception('Provide either an x, y coordinate or an index.')
-        if x is not None:
-            index = (x - 1) * 8 + (y - 1)
-        self.chess_map[index] = thing
-
-    def get_pieces(self):
-        """Return all game pieces"""
-        return ([self.chess_map[i] for i in range(0, 8 * 8)
-                                   if self.chess_map[i] != None])
-
-    def pawn_transform(self):
-        """Transform pawns that reach the final line to a queen."""
-        pawns = (p for p in self.get_pieces() if p.name == 'pawn')
-        for pawn in pawns:
-            if pawn.y == 1 or pawn.y == 8:
-                pawn.name = "queen"
-                pawn.update_stats()
-                # Assume only one pawn can reach final line pr turn
-                return
-
-    def move_unit(self, (from_x, from_y), (to_x, to_y)):
-        """Move a unit from (from_x, from_y) to (to_x, to_y)"""
-        unit = self.get_point(from_x, from_y)
-        self.moves.append((self.get_point(to_x, to_y), (from_x, from_y),
-                                                       (to_x, to_y)))
-        self.set_point(unit, x = to_x, y = to_y)
-        self.set_point(None, x = from_x, y = from_y)
-        unit.set_pos(to_x, to_y)
-
-    def undo_move(self):
-        """Undo the last move. Cannot currently redo moves"""
-        unit, (from_x, from_y), (to_x, to_y) = self.moves.pop()
-        moved_unit = self.get_point(x = to_x, y = to_y)
-        self.set_point(unit, x = to_x, y = to_y)
-        self.set_point(moved_unit, x = from_x, y = from_y)
-        if unit != None:
-            unit.set_pos(to_x, to_y)
-        moved_unit.set_pos(from_x, from_y)
-
-    # Test if model state during execution
-    def game_not_over(self):
-        """Test whether the game has ended"""
-        # The game ends when there is less than 2 kings on the model
-        return sum(self.chess_map[i] != None and
-                   self.chess_map[i].name == "king"
-                   for i in range(0, 8*8)) == 2 and not self.is_in_checkmate()
-
-    def is_inside(self, x, y):
-        """Is the coordinate within the game model?"""
-        return x in range(1, 9) and y in range(1, 9)
 
     def is_in_check(self, test_for):
         """Is player number 'test_for' in check?"""
@@ -283,11 +204,116 @@ class Model:
                     break
         return is_in_checkmate
 
+    def is_inside(self, x, y):
+        """Is the coordinate within the game model?"""
+        return x in range(1, 9) and y in range(1, 9)
+
+    def move_unit(self, (from_x, from_y), (to_x, to_y)):
+        """Move a unit from (from_x, from_y) to (to_x, to_y)"""
+        unit = self.get_point(from_x, from_y)
+        self.moves.append((self.get_point(to_x, to_y), (from_x, from_y),
+                                                       (to_x, to_y)))
+        self.set_point(unit, x = to_x, y = to_y)
+        self.set_point(None, x = from_x, y = from_y)
+        unit.set_pos(to_x, to_y)
+
+    def pawn_transform(self):
+        """Transform pawns that reach the final line to a queen."""
+        pawns = (p for p in self.get_pieces() if p.name == 'pawn')
+        for pawn in pawns:
+            if pawn.y == 1 or pawn.y == 8:
+                pawn.name = "queen"
+                pawn.update_stats()
+                # Assume only one pawn can reach final line pr turn
+                return
+
+    def setup_standard_map(self):
+        """Create and place pieces for a standard game"""
+        # Officers
+        y = 1
+        for x in (1, 8):
+            self.set_point(Piece("rock", (x, y), 0, self), x=x, y=y)
+        for x in (3, 6):
+            self.set_point(Piece("bishop", (x, y), 0, self), x=x, y=y)
+        for x in (2, 7):
+            self.set_point(Piece("knight", (x, y), 0, self), x=x, y=y)
+        self.set_point(Piece("queen", (4, y), 0, self), x=4, y=y)
+        self.set_point(Piece("king", (5, y), 0, self), x=5, y=y)
+
+        # Pawns
+        for x in range(1, 9):
+            self.set_point(Piece("pawn", (x, 2), 0, self), x=x, y=2)
+
+        # Black pieces
+        self._mirror_map()
+
+    def set_point(self, thing, x = None, y = None, index = None):
+        """Set the index to contain the thing."""
+        if (x is None) != (y is None):
+            raise Exception('Both x and y must be given.')
+        if (x is None) == (index is None):
+            raise Exception('Provide either an x, y coordinate or an index.')
+        if x is not None:
+            index = (x - 1) * 8 + (y - 1)
+        self.chess_map[index] = thing
+
+    def setup_pawn_map(self):
+        """Create and place pieces for a pawn game"""
+        for x in range(1, 9):
+            self.set_point(Piece("pawn", (x, 2), 0, self), x = x, y = 2)
+        self.set_point(Piece("king", (5, 1), 0, self), x = 5, y = 1)
+        self._mirror_map()
+
+    def setup_queen_map(self):
+        """A map with one player having 7 queens and the other 1 rock"""
+        for x in range(1, 9):
+            self.set_point(Piece("queen", (x, 1), 0, self), x =x, y=1)
+        self.set_point(Piece("king", (5, 1), 0, self), x=5, y=1)
+        self.set_point(Piece("rock", (5, 7), 1, self), x=5, y=7)
+        self.set_point(Piece("king", (5, 8), 1, self), x=5, y=8)
+
+    def undo_move(self):
+        """Undo the last move. Cannot currently redo moves"""
+        unit, (from_x, from_y), (to_x, to_y) = self.moves.pop()
+        moved_unit = self.get_point(x = to_x, y = to_y)
+        self.set_point(unit, x = to_x, y = to_y)
+        self.set_point(moved_unit, x = from_x, y = from_y)
+        if unit != None:
+            unit.set_pos(to_x, to_y)
+        moved_unit.set_pos(from_x, from_y)
+
 class Terminal_view:
     """Handles displaying the game in a terminal."""
     def __init__ (self, model):
         self.model = model
         self.msg = None
+
+    def is_in_check(self):
+        """Function called when the player to move is in check"""
+        self.msg = "You are in check!"
+
+    def is_in_checkmate(self):
+        """Tells a player he's been checkmated."""
+        self.msg = "You have been checkmated!"
+
+    def print_loss_screen(self, color):
+        """Print loss screen for the player with color 'color'."""
+        self.refresh_map()
+        self.print_moves()
+        print "%s just Lost the Game" % color
+        if self.msg != None:
+            print self.msg
+
+    def print_moves(self):
+        """Print all moves that have been made in chess notation"""
+        notation = []
+        for index, move in enumerate(self.model.moves):
+            if index % 2 == 0:
+                notation.append("\n%i. " % (index / 2 + 1))
+            else:
+                notation.append(", ")
+            notation.append(coordinates_to_human_notation(move))
+        print "".join(notation)
 
     def refresh_map(self):
         """Draw the model to terminal"""
@@ -325,32 +351,6 @@ class Terminal_view:
             print self.msg
             self.msg = None
 
-    def print_moves(self):
-        """Print all moves that have been made in chess notation"""
-        notation = []
-        for index, move in enumerate(self.model.moves):
-            if index % 2 == 0:
-                notation.append("\n%i. " % (index / 2 + 1))
-            else:
-                notation.append(", ")
-            notation.append(coordinates_to_human_notation(move))
-        print "".join(notation)
-
-    def is_in_check(self):
-        """Function called when the player to move is in check"""
-        self.msg = "You are in check!"
-
-    def is_in_checkmate(self):
-        """Tells a player he's been checkmated."""
-        self.msg = "You have been checkmated!"
-
-    def print_loss_screen(self, color):
-        """Print loss screen for the player with color 'color'."""
-        self.refresh_map()
-        self.print_moves()
-        print "%s just Lost the Game" % color
-        if self.msg != None:
-            print self.msg
 
 def coordinates_to_human_notation((unit, (from_x, from_y), (to_x, to_y))):
     """Translate coordinates like 21-31 to Kb1-f3"""
