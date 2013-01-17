@@ -48,8 +48,8 @@ class Piece:
     def is_legal_move(self, x, y):
         """Test whether the proposed move is legal"""
         # Assume move is within self.model and not current pos.
-        potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
-                                 self.movement)
+        potential_moves = [(self.x + tmp_x, self.y + tmp_y) for (tmp_x, tmp_y)
+                                                            in self.movement]
         if (x, y) not in potential_moves:
             return False
         final = self.model.get_point(x, y)
@@ -89,8 +89,8 @@ class Piece:
 
         Mainly used by AI's and to test for checkmate.
         """
-        potential_moves = map(lambda (x, y): (x + self.x, y + self.y),
-                                 self.movement)
+        potential_moves = [(self.x + tmp_x, self.y + tmp_y) for (tmp_x, tmp_y)
+                                                            in self.movement]
         return [(x, y) for x, y in potential_moves if
                     self.model.is_inside(x, y) and self.is_legal_move(x, y)]
 
