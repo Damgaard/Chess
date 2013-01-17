@@ -7,13 +7,14 @@ Hard Problem 68 on r/dailyprogrammer
 import copy
 import itertools
 import os
-import random
 import sys
 try:
     from termcolor import colored
     has_term_color = True
 except ImportError:
     has_term_color = False
+
+from ai import RandomAI, SmartAI
 
 class Piece:
     """Class representing a chess piece"""
@@ -377,11 +378,6 @@ def human_notation_to_coordinates(move):
     return ((x_names.index(from_x) + 1, int(from_y)),
             (x_names.index(to_x) + 1, int(to_y)))
 
-# I think the smartest thing would be to have the AI or even players
-# as classes and extend them with functionality. Such that the smart AI
-# would build on the random AI and easily make a random move.
-# This would remove the need to repeatedly get all the pieces from model
-
 def human(my_player):
     """Get move through feedback. Through terminal"""
     while True:
@@ -409,31 +405,10 @@ def human(my_player):
         else:
             return ((from_x, from_y), (to_x, to_y))
 
-def random_ai(my_player):
-    """Finds a random unit, randomly selects one of its random moves"""
-    my_pieces = (p for p in model.get_pieces() if p.player == my_player)
-    all_moves = reduce(lambda x, y: x + y,
-            (zip([(p.x, p.y)] * len(p.legal_moves()), p.legal_moves())
-            for p in my_pieces))
-    return random.choice(all_moves)
-
-def smart_ai(my_player):
-    """VERY smart. Can see winning moves!"""
-    pieces = model.get_pieces()
-    enemy_king = [x for x in pieces if x.name == "king" and
-                                       x.player != my_player ][0]
-    my_pieces = (p for p in pieces if p.player == my_player)
-    # Can i take the enemy king?
-    for piece in my_pieces:
-        if piece.is_legal_move(enemy_king.x, enemy_king.y):
-            return ((piece.x, piece.y), (enemy_king.x, enemy_king.y))
-    # Failed to find winning move. Lets make a random one
-    return random_ai(my_player)
-
 def game(players = None):
     """Main loop"""
     if players is None:
-        players = [random_ai, random_ai]
+        players = [RandomAI(0, model), RandomAI(1, model)]
     colors = ["White", "Black"]
     turn = 0
 
@@ -443,7 +418,7 @@ def game(players = None):
         # Tell view color of next player
         view.to_move(colors[turn])
         # Get the move
-        from_pos, to_pos = players[turn](turn)
+        from_pos, to_pos = players[turn].move()
         # Move the unit in the model
         model.move_unit(from_pos, to_pos)
         # Test if any pawn has reached the final line and may be transformed
@@ -462,7 +437,7 @@ def setup():
     """Clear screen and find out who is playing."""
     os.system(['clear', 'cls'][ os.name == 'nt' ] )
     players = []
-    player_types = [human, random_ai, smart_ai]
+    player_types = [human, RandomAI, SmartAI]
     print "Welcome to terminal chess!"
     print "In game use notation like e2-e4 to move pieces"
     if not has_term_color:
@@ -485,7 +460,7 @@ def setup():
             print ":("
             sys.exit(0)
         else:
-            players.append(player_types[number_input - 1])
+            players.append(player_types[number_input - 1](len(players), model))
             print "You've added a player. But chess is a 2-player game, so"
     game(players)
 
